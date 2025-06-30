@@ -17,7 +17,7 @@
 // If non-zero, the library uses exceptions to report bad input instead of C
 // assertion macros. The default is to use exceptions.
 #ifndef JSON_USE_EXCEPTION
-#define JSON_USE_EXCEPTION 1
+#define JSON_USE_EXCEPTION 0
 #endif
 
 // Temporary, tracked for removal with issue #982.

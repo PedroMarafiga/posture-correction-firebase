@@ -30,7 +30,6 @@ extern const char cert_end[]   asm("_binary_gtsr1_pem_end");
 static int output_len = 0; 
 static esp_err_t http_event_handler(esp_http_client_event_t *evt)
 {
-
     switch(evt->event_id) {
         case HTTP_EVENT_ERROR:
             ESP_LOGD(HTTP_TAG, "HTTP_EVENT_ERROR");
@@ -46,13 +45,16 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt)
         case HTTP_EVENT_ON_HEADER:
             ESP_LOGD(HTTP_TAG, "HTTP_EVENT_ON_HEADER, key=%s, value=%s", evt->header_key, evt->header_value);
             break;
+        case HTTP_EVENT_ON_HEADERS_COMPLETE:  // <-- novo case adicionado
+            ESP_LOGD(HTTP_TAG, "HTTP_EVENT_ON_HEADERS_COMPLETE");
+            break;
         case HTTP_EVENT_ON_FINISH:
             ESP_LOGD(HTTP_TAG, "HTTP_EVENT_ON_FINISH");
             output_len = 0;
             break;
         case HTTP_EVENT_ON_DATA:
             ESP_LOGD(HTTP_TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
-            memcpy(evt->user_data + output_len, evt->data, evt->data_len);
+            memcpy((char*)evt->user_data + output_len, evt->data, evt->data_len);  // cast adicionado aqui
             output_len += evt->data_len;
             break;
         case HTTP_EVENT_DISCONNECTED:
@@ -61,10 +63,12 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt)
         case HTTP_EVENT_REDIRECT:
             ESP_LOGD(HTTP_TAG, "HTTP_EVENT_REDIRECT");
             break;
+        default:  // para prevenir warnings futuros
+            ESP_LOGD(HTTP_TAG, "Evento HTTP não tratado: %d", evt->event_id);
+            break;
     }
     return ESP_OK;
 }
-
 namespace ESPFirebase {
 
 // TODO: protect this function from breaking 
