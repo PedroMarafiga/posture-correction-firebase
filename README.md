@@ -1,120 +1,124 @@
-# WPA2 Enterprise Example
+# Sistema de Monitoramento de Postura - MPU6050 + Firebase
 
-This example shows how ESP32 connects to AP with wpa2 enterprise encryption. Example does the following steps:
+Este projeto monitora a postura usando 4 sensores MPU6050 e envia alertas para Firebase quando detecta má postura.
 
-1. Install CA certificate which is optional.
-2. Install client certificate and client key which is required in TLS method and optional in PEAP and TTLS methods.
-3. Set identity of phase 1 which is optional.
-4. Set user name and password of phase 2 which is required in PEAP and TTLS methods.
-5. Enable wpa2 enterprise.
-6. Connect to AP.
+## 🔧 Configuração de Wi-Fi
 
-*Note:* 1. The certificates currently are generated and are present in examples.wifi/wpa2_enterprise/main folder.
-        2. The expiration date of the certificates is 2027/06/05.
+O sistema suporta dois tipos de conexão Wi-Fi:
 
-The steps to create new certificates are given below.
+### 🏠 Wi-Fi Normal (Casa/Trabalho)
+Para redes Wi-Fi comuns com senha WPA/WPA2.
 
-## The file wpa2_ca.pem, wpa2_ca.key, wpa2_server.pem, wpa2_server.crt and wpa2_server.key can be used to configure AP with wpa2 enterprise encryption. 
+### 🏫 WPA2 Enterprise (Universidade)
+Para redes corporativas/universitárias com autenticação EAP.
 
-## How to use Example
+## 📝 Como Alternar Entre os Modos
 
-### Configuration
+### 1. Edite o arquivo `main/wifi_config.h`
 
-```
-idf.py menuconfig
-```
-* Set SSID of Access Point to connect in Example Configuration.
-* Select EAP method (TLS, TTLS or PEAP).
-* Select Phase2 method (only for TTLS).
-* Enter EAP-ID.
-* Enter Username and Password (only for TTLS and PEAP).
-* Enable or disable Validate Server option.
+```c
+// Para Wi-Fi de casa
+#define USE_ENTERPRISE_WIFI 0
+#define WIFI_SSID_HOME "NomeDaSuaRede"
+#define WIFI_PASSWORD_HOME "SenhaDaSuaRede"
 
-### Build and Flash the project.
-
-```
-idf.py -p PORT flash monitor
+// Para Wi-Fi da universidade
+#define USE_ENTERPRISE_WIFI 1
+// (configurações da UTFPR já estão prontas)
 ```
 
-## Steps to create wpa2_ent openssl certs
+### 2. Recompile e faça upload
 
-1. make directry tree
-
-  mkdir demoCA
-  mkdir demoCA/newcerts
-  mkdir demoCA/private
-  sh -c "echo '01' > ./demoCA/serial"
-  touch ./demoCA/index.txt
-  touch xpextensions 
-
-     add following lines in xpextensions file 
-
-      [ xpclient_ext ]
-      extendedKeyUsage = 1.3.6.1.5.5.7.3.2
-
-      [ xpserver_ext ]
-      extendedKeyUsage = 1.3.6.1.5.5.7.3.1
-
-2. ca.pem: root certificate, foundation of certificate verigy
-  openssl req -new -x509 -keyout wpa2_ca.key -out wpa2_ca.pem
-
-3. generate rsa keys for client and server
-  openssl genrsa -out wpa2_client.key 2048
-  openssl genrsa -out wpa2_server.key 2048
-
-4. generate certificate signing req for both client and server
-  openssl req -new -key wpa2_client.key -out wpa2_client.csr
-  openssl req -new -key wpa2_server.key -out wpa2_server.csr
-
-5. create certs (.crt) for client nd server
-  openssl ca -batch -keyfile wpa2_ca.key -cert wpa2_ca.pem -in wpa2_client.csr -key (password) -out wpa2_client.crt -extensions xpserver_ext -extfile xpextensions
-  openssl ca -batch -keyfile wpa2_ca.key -cert wpa2_ca.pem -in wpa2_server.csr -key (password) -out wpa2_server.crt -extensions xpserver_ext -extfile xpextensions
-
-6. export .p12 files
-  openssl pkcs12 -export -out wpa2_client.p12 -inkey wpa2_client.key -in wpa2_client.crt
-  openssl pkcs12 -export -out wpa2_server.p12 -inkey wpa2_server.key -in wpa2_server.crt
-
-7. create .pem files
-  openssl pkcs12 -in wpa2_client.p12 -out wpa2_client.pem
-  openssl pkcs12 -in wpa2_server.p12 -out wpa2_server.pem
-
-   
-
-### Example output
-
-Here is an example of wpa2 enterprise(PEAP method) console output.
+```bash
+idf.py build
+idf.py flash monitor
 ```
-I (1352) example: Setting WiFi configuration SSID wpa2_test...
-I (1362) wpa: WPA2 ENTERPRISE VERSION: [v2.0] enable
 
-I (1362) wifi: rx_ba=1 tx_ba=1
+## 🔌 Conexões dos Sensores MPU6050
 
-I (1372) wifi: mode : sta (24:0a:c4:03:b8:dc)
-I (3002) wifi: n:11 0, o:1 0, ap:255 255, sta:11 0, prof:11
-I (3642) wifi: state: init -> auth (b0)
-I (3642) wifi: state: auth -> assoc (0)
-I (3652) wifi: state: assoc -> run (10)
-I (3652) wpa: wpa2_task prio:24, stack:6144
+### Barramento I2C 0 (GPIO26/25)
+- **Sensor 0:** AD0 = GND (endereço 0x68)
+- **Sensor 1:** AD0 = VCC (endereço 0x69)
 
-I (3972) wpa: >>>>>wpa2 FINISH
+### Barramento I2C 1 (GPIO22/21)
+- **Sensor 2:** AD0 = GND (endereço 0x68)
+- **Sensor 3:** AD0 = VCC (endereço 0x69)
 
-I (3982) wpa: wpa2 task delete
+## 🎯 Lógica de Detecção de Má Postura
 
-I (3992) wifi: connected with wpa2_test, channel 11
-I (5372) example: ~~~~~~~~~~~
-I (5372) example: IP:0.0.0.0
-I (5372) example: MASK:0.0.0.0
-I (5372) example: GW:0.0.0.0
-I (5372) example: ~~~~~~~~~~~
-I (6832) event: ip: 192.168.1.112, mask: 255.255.255.0, gw: 192.168.1.1
-I (7372) example: ~~~~~~~~~~~
-I (7372) example: IP:192.168.1.112
-I (7372) example: MASK:255.255.255.0
-I (7372) example: GW:192.168.1.1
-I (7372) example: ~~~~~~~~~~~
-I (9372) example: ~~~~~~~~~~~
-I (9372) example: IP:192.168.1.112
-I (9372) example: MASK:255.255.255.0
-I (9372) example: GW:192.168.1.1
-I (9372) example: ~~~~~~~~~~~
+- **Posição Base:** Pitch = 0°, Roll = 90°
+- **Tolerância:** ±20°
+- **Timer:** 20 segundos de má postura consecutiva
+- **Ação:** Envia dados para Firebase em `/ma_postura/{timestamp}`
+
+## 📊 Estrutura dos Dados no Firebase
+
+```json
+{
+  "sensor1": {"roll": 85.2, "pitch": 5.1},
+  "sensor2": {"roll": 88.7, "pitch": 2.3},
+  "sensor3": {"roll": 91.1, "pitch": -1.2},
+  "sensor4": {"roll": 89.9, "pitch": 3.4},
+  "status": "má postura",
+  "timestamp": 1672531200
+}
 ```
+
+## 🚀 Como Usar
+
+1. **Configure o Wi-Fi** editando `wifi_config.h`
+2. **Configure o Firebase** editando `firebase_config.h`
+3. **Conecte os sensores** conforme o diagrama
+4. **Compile e faça upload**
+5. **Monitore os logs** para verificar conexões
+
+## 📋 Logs Importantes
+
+- `Wi-Fi conectado` - Conexão estabelecida
+- `Firebase conectado` - Autenticação realizada
+- `4 sensores MPU6050 inicializados` - Sensores funcionando
+- `Má postura detectada!` - Início da contagem
+- `ALERTA: Má postura por 20 segundos!` - Dados enviados
+
+## ⚡ Troubleshooting
+
+### Wi-Fi não conecta
+- Verifique SSID e senha no `wifi_config.h`
+- Para Enterprise, confirme credenciais EAP
+
+### Sensores não funcionam
+- Verifique conexões físicas e resistores pull-up
+- Confirme logs para erros específicos
+
+### Firebase não funciona
+- Confirme credenciais no `firebase_config.h`
+- Verifique regras de segurança do Firebase
+
+## 📁 Estrutura do Projeto
+
+```
+main/
+├── wpa2_enterprise_main.cpp  # Código principal
+├── mpu_wrapper.cpp/.h        # Interface dos sensores
+├── wifi_config.h             # Configurações Wi-Fi
+├── firebase_config.h         # Configurações Firebase
+└── CMakeLists.txt           # Build system
+```
+
+## 🔑 Configuração Rápida
+
+### Para usar em casa:
+1. Edite `main/wifi_config.h`:
+   ```c
+   #define USE_ENTERPRISE_WIFI 0
+   #define WIFI_SSID_HOME "SeuWiFi"
+   #define WIFI_PASSWORD_HOME "SuaSenha"
+   ```
+2. `idf.py build flash monitor`
+
+### Para usar na universidade:
+1. Edite `main/wifi_config.h`:
+   ```c
+   #define USE_ENTERPRISE_WIFI 1
+   ```
+2. `idf.py build flash monitor`

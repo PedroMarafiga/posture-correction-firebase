@@ -21,7 +21,8 @@
 #include "esp_firebase/app.h"
 #include "esp_firebase/rtdb.h"
 #include "firebase_config.h"
-#include "mpu_wrapper.h"  // Adicione esta linha
+#include "wifi_config.h"
+#include "mpu_wrapper.h"
 #include "esp_timer.h"
 #include <time.h>
 #include "esp_sntp.h"
@@ -30,15 +31,11 @@
 
 using namespace ESPFirebase;
 
-#define WIFI_SSID "UTFPR-ALUNO"
-#define EAP_ID "a2456621"
-#define EAP_USERNAME "a2456621"
-#define EAP_PASSWORD "qatezc10"
-#define CONNECTED_BIT BIT0
-
 static EventGroupHandle_t wifi_event_group;
 static esp_netif_t *sta_netif = NULL;
 static const char *TAG = "INTEGRADO";
+
+#define CONNECTED_BIT BIT0
 
 static void initialize_sntp(void) {
     ESP_LOGI(TAG, "Initializing SNTP");
@@ -91,7 +88,11 @@ void init_wifi() {
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL));
 
     wifi_config_t wifi_config = {};
-    strcpy((char *)wifi_config.sta.ssid, WIFI_SSID);
+    
+#if USE_ENTERPRISE_WIFI
+    // Configuração para WPA2 Enterprise (universidade)
+    ESP_LOGI(TAG, "Configurando Wi-Fi WPA2 Enterprise: %s", WIFI_SSID_ENTERPRISE);
+    strcpy((char *)wifi_config.sta.ssid, WIFI_SSID_ENTERPRISE);
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
 
@@ -100,6 +101,15 @@ void init_wifi() {
     esp_eap_client_set_password((uint8_t *)EAP_PASSWORD, strlen(EAP_PASSWORD));
 
     ESP_ERROR_CHECK(esp_wifi_sta_enterprise_enable());
+#else
+    // Configuração para Wi-Fi normal (casa)
+    ESP_LOGI(TAG, "Configurando Wi-Fi normal: %s", WIFI_SSID_HOME);
+    strcpy((char *)wifi_config.sta.ssid, WIFI_SSID_HOME);
+    strcpy((char *)wifi_config.sta.password, WIFI_PASSWORD_HOME);
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+#endif
+
     ESP_ERROR_CHECK(esp_wifi_start());
 }
 
